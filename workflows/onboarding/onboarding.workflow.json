@@ -1,0 +1,200 @@
+{
+  "name": "Onboarding",
+  "description": "Flux de integrare pentru angajații noi: mesaj de bun venit, formular de informații, anunț în echipă și remindere programate la Ziua 1, 3, 7 și 30, încheiat cu formularul de feedback la 30 de zile.",
+  "version": "1.0.0",
+  "language": "ro",
+  "variables": {
+    "new_member": {
+      "type": "user",
+      "description": "Membrul nou care este integrat",
+      "required": true
+    },
+    "manager": {
+      "type": "user",
+      "description": "Managerul direct al membrului nou",
+      "required": true
+    },
+    "buddy": {
+      "type": "user",
+      "description": "Colegul desemnat ca „buddy” de integrare",
+      "required": false
+    },
+    "department": {
+      "type": "string",
+      "description": "Departamentul / rolul completat în formular",
+      "required": false
+    },
+    "start_date": {
+      "type": "date",
+      "description": "Data de început, completată în formular",
+      "required": false
+    },
+    "laptop_preference": {
+      "type": "string",
+      "description": "Preferința pentru laptop, completată în formular",
+      "required": false
+    }
+  },
+  "triggers": [
+    {
+      "id": "trigger_member_joined",
+      "type": "event",
+      "event": "member_joined_channel",
+      "channel": "#bun-venit",
+      "description": "Pornește automat când un membru nou intră pe #bun-venit.",
+      "starts_workflow_for": "{{new_member}}",
+      "maps": {
+        "new_member": "event.user"
+      },
+      "next": "welcome_dm"
+    },
+    {
+      "id": "trigger_manual",
+      "type": "manual",
+      "label": "Pornește onboarding",
+      "description": "Folosit de un manager pentru un angajat nou numit.",
+      "actor": "manager",
+      "inputs": [
+        { "variable": "new_member", "label": "Angajat nou", "type": "user", "required": true },
+        { "variable": "manager", "label": "Manager", "type": "user", "required": true },
+        { "variable": "buddy", "label": "Buddy", "type": "user", "required": false }
+      ],
+      "next": "welcome_dm"
+    }
+  ],
+  "steps": [
+    {
+      "id": "welcome_dm",
+      "type": "send_dm",
+      "actor": "workflow",
+      "to": "{{new_member}}",
+      "message": "Bun venit în echipă, {{new_member}}! 🎉\n\nNe bucurăm că ești alături de noi. Câteva lucruri utile:\n\n*Reguli de bază*\n• Fii respectuos și ajută-ți colegii.\n• Folosește thread-urile pentru discuții lungi.\n• Nu distribui informații confidențiale în afara canalelor private.\n\n*Canale importante*\n• #general - discuții și noutăți pentru toată lumea\n• #anunturi - anunțuri oficiale ale companiei\n• #ajutor-it - suport tehnic și cereri IT\n\n*Persoane de contact*\n• Manager: {{manager}}\n• Buddy: {{buddy}}\n• Suport IT: #ajutor-it\n\nÎn continuare îți vom cere câteva informații într-un scurt formular.",
+      "next": "info_form"
+    },
+    {
+      "id": "info_form",
+      "type": "send_form",
+      "actor": "workflow",
+      "to": "{{new_member}}",
+      "title": "Informații de onboarding",
+      "fields": [
+        {
+          "id": "department",
+          "label": "Rol / departament",
+          "type": "select",
+          "options": ["IT", "Vânzări", "Marketing", "Financiar", "HR", "Operațiuni", "Altul"],
+          "required": true
+        },
+        {
+          "id": "start_date",
+          "label": "Data de început",
+          "type": "date",
+          "required": true
+        },
+        {
+          "id": "laptop_preference",
+          "label": "Preferință laptop",
+          "type": "select",
+          "options": ["Windows", "macOS", "Linux", "Nu am preferință"],
+          "required": true
+        }
+      ],
+      "saves_to": {
+        "department": "department",
+        "start_date": "start_date",
+        "laptop_preference": "laptop_preference"
+      },
+      "next": "check_department"
+    },
+    {
+      "id": "check_department",
+      "type": "condition",
+      "actor": "workflow",
+      "if": "{{department}} == 'IT'",
+      "then": "notify_it_support",
+      "else": "announce_in_team"
+    },
+    {
+      "id": "notify_it_support",
+      "type": "send_channel_message",
+      "actor": "workflow",
+      "channel": "#it-support",
+      "message": "🖥️ *Cerere de acces – angajat nou (IT)*\n\n• Persoană: {{new_member}}\n• Manager: {{manager}}\n• Data de început: {{start_date}}\n• Preferință laptop: {{laptop_preference}}\n\nVă rugăm să creați conturile și accesele necesare (e-mail, VPN, repo-uri, instrumente interne) și să pregătiți echipamentul până la data de început.",
+      "next": "announce_in_team"
+    },
+    {
+      "id": "announce_in_team",
+      "type": "send_channel_message",
+      "actor": "workflow",
+      "channel": "#echipa",
+      "message": "👋 Avem un coleg nou! Vă prezentăm pe {{new_member}}, care se alătură departamentului {{department}} începând cu {{start_date}}. Manager: {{manager}}, buddy: {{buddy}}.\n\nFiți cu toții amabili și spuneți-i un „Salut!” ca să se simtă bine-venit! 🙌",
+      "next": "reminder_day_1"
+    },
+    {
+      "id": "reminder_day_1",
+      "type": "create_reminder",
+      "actor": "workflow",
+      "schedule": { "offset_days": 0, "relative_to": "{{start_date}}", "label": "Ziua 1" },
+      "to": ["{{new_member}}", "{{manager}}"],
+      "message": "📋 *Ziua 1 – Checklist*\n• Conturi și acces: verifică e-mailul, Slack și instrumentele interne.\n• Întâlnire cu managerul ({{manager}}).\n• Prezentare în echipă.",
+      "next": "reminder_day_3"
+    },
+    {
+      "id": "reminder_day_3",
+      "type": "create_reminder",
+      "actor": "workflow",
+      "schedule": { "offset_days": 3, "relative_to": "{{start_date}}", "label": "Ziua 3" },
+      "to": ["{{new_member}}", "{{manager}}"],
+      "message": "📋 *Ziua 3 – Checklist*\n• Parcurge modulele de training.\n• Întâlnire cu buddy-ul ({{buddy}}).",
+      "next": "reminder_day_7"
+    },
+    {
+      "id": "reminder_day_7",
+      "type": "create_reminder",
+      "actor": "workflow",
+      "schedule": { "offset_days": 7, "relative_to": "{{start_date}}", "label": "Ziua 7" },
+      "to": ["{{new_member}}", "{{manager}}"],
+      "message": "📋 *Ziua 7 – Feedback prima săptămână*\nCompletează formularul de feedback pentru prima săptămână, {{new_member}}. {{manager}}, te rugăm să discuți cu el/ea impresiile.",
+      "form": {
+        "title": "Feedback prima săptămână",
+        "fields": [
+          { "id": "week1_rating", "label": "Cum a fost prima săptămână?", "type": "select", "options": ["Excelentă", "Bună", "Ok", "Dificilă"], "required": true },
+          { "id": "week1_comments", "label": "Comentarii sau blocaje", "type": "long_text", "required": false }
+        ]
+      },
+      "next": "reminder_day_30"
+    },
+    {
+      "id": "reminder_day_30",
+      "type": "create_reminder",
+      "actor": "workflow",
+      "schedule": { "offset_days": 30, "relative_to": "{{start_date}}", "label": "Ziua 30" },
+      "to": ["{{new_member}}", "{{manager}}"],
+      "message": "📋 *Ziua 30 – Evaluare*\nProgramați o discuție de evaluare între {{new_member}} și {{manager}} pentru a analiza primele 30 de zile.",
+      "next": "final_feedback_form"
+    },
+    {
+      "id": "final_feedback_form",
+      "type": "send_form",
+      "actor": "workflow",
+      "to": "{{new_member}}",
+      "schedule": { "offset_days": 30, "relative_to": "{{start_date}}", "label": "Ziua 30" },
+      "title": "Feedback după 30 de zile",
+      "fields": [
+        { "id": "overall_rating", "label": "Cum evaluezi experiența de onboarding?", "type": "select", "options": ["Excelentă", "Bună", "Ok", "Slabă"], "required": true },
+        { "id": "role_clarity", "label": "Ți-e clar ce ai de făcut în rolul tău?", "type": "select", "options": ["Da", "În mare parte", "Nu"], "required": true },
+        { "id": "improvements", "label": "Ce am putea îmbunătăți?", "type": "long_text", "required": false }
+      ],
+      "next": "post_results"
+    },
+    {
+      "id": "post_results",
+      "type": "send_dm",
+      "actor": "workflow",
+      "to": ["{{manager}}", "@HR"],
+      "private": true,
+      "message": "📊 *Rezultate feedback 30 de zile – {{new_member}}*\n\n• Evaluare generală: {{overall_rating}}\n• Claritate rol: {{role_clarity}}\n• Îmbunătățiri propuse: {{improvements}}\n\nAcest mesaj este privat, vizibil doar pentru manager și HR.",
+      "next": null
+    }
+  ]
+}
